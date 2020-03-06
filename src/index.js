@@ -8,6 +8,8 @@ import {
   getBeginningTimeForDate,
   convertToDate,
   getRange,
+  daysOfWeek,
+  getLastDayOf
 } from './helpers';
 
 const SQUARE_SIZE = 10;
@@ -62,6 +64,7 @@ class CalendarHeatmap extends React.Component {
 
   getStartDateWithEmptyDays() {
     return shiftDate(this.getStartDate(), -this.getNumEmptyDaysAtStart());
+    //return shiftDate(this.getStartDate(), -(this.getNumEmptyDaysAtStart() - this.getOffsetForAltStartDay()));
   }
 
   getNumEmptyDaysAtStart() {
@@ -83,8 +86,11 @@ class CalendarHeatmap extends React.Component {
   }
 
   getWidth() {
+    // return extra height if month starts on Sunday
+    let startDay = this.getStartDate().getDay();
+    let padding = startDay === 0?1:0
     return (
-      this.getWeekCount() * this.getSquareSizeWithGutter() -
+      (this.getWeekCount() + padding) * this.getSquareSizeWithGutter() -
       (this.props.gutterSize - this.getWeekdayLabelSize())
     );
   }
@@ -95,6 +101,26 @@ class CalendarHeatmap extends React.Component {
       (this.getMonthLabelSize() - this.props.gutterSize) +
       this.getWeekdayLabelSize()
     );
+  }
+
+  getOffsetX() {
+    return this.props.offsetX;
+  }
+
+  getOffsetY() {
+    return this.props.offsetY;
+  }
+
+  getPaddingX() {
+    return this.props.paddingX;
+  }
+
+  getPaddingY() {
+    return this.props.paddingY;
+  }
+
+  getOffsetForAltStartDay() {
+    return this.props.startWeekOn;
   }
 
   getValueCache = memoizeOne((props) =>
@@ -180,16 +206,22 @@ class CalendarHeatmap extends React.Component {
 
   getViewBox() {
     if (this.props.horizontal) {
-      return `0 0 ${this.getWidth()} ${this.getHeight()}`;
+      return `${this.getOffsetX()} ${this.getOffsetY()} ${this.getWidth() + this.getPaddingX()} ${this.getHeight() + this.getPaddingY()}`;
     }
-    return `0 0 ${this.getHeight()} ${this.getWidth()}`;
+    return `${this.getOffsetX()} ${this.getOffsetY()} ${this.getHeight() + this.getPaddingX()} ${this.getWidth() + this.getPaddingY()}`;
   }
 
   getSquareCoordinates(dayIndex) {
     if (this.props.horizontal) {
-      return [0, dayIndex * this.getSquareSizeWithGutter()];
+      return [0, ((dayIndex - this.getOffsetForAltStartDay() >= 0)
+        ?(dayIndex - this.getOffsetForAltStartDay())
+        :(7 - (dayIndex - this.getOffsetForAltStartDay()))) * this.getSquareSizeWithGutter()];
     }
-    return [dayIndex * this.getSquareSizeWithGutter(), 0];
+    return [((dayIndex - this.getOffsetForAltStartDay() >= 0)
+      ?(dayIndex - this.getOffsetForAltStartDay())
+      :(7 + (dayIndex - this.getOffsetForAltStartDay()))) * this.getSquareSizeWithGutter(), 
+      (this.getOffsetForAltStartDay() > 0 && (dayIndex - this.getOffsetForAltStartDay() < 0))
+      ?(-this.getSquareSizeWithGutter()):0];
   }
 
   getWeekdayLabelCoordinates(dayIndex) {
@@ -229,6 +261,7 @@ class CalendarHeatmap extends React.Component {
   }
 
   renderSquare(dayIndex, index) {
+    console.log(dayIndex, index, this.getOffsetForAltStartDay());
     const indexOutOfRange =
       index < this.getNumEmptyDaysAtStart() ||
       index >= this.getNumEmptyDaysAtStart() + this.getDateDifferenceInDays();
@@ -237,6 +270,7 @@ class CalendarHeatmap extends React.Component {
     }
     const [x, y] = this.getSquareCoordinates(dayIndex);
     const value = this.getValueForIndex(index);
+    console.log(dayIndex, x, y, value);
     const rect = (
       // eslint-disable-next-line jsx-a11y/mouse-events-have-key-events
       <rect
@@ -266,7 +300,7 @@ class CalendarHeatmap extends React.Component {
         className={`${CSS_PSEDUO_NAMESPACE}week`}
       >
         {getRange(DAYS_IN_WEEK).map((dayIndex) =>
-          this.renderSquare(dayIndex, weekIndex * DAYS_IN_WEEK + dayIndex),
+          this.renderSquare(dayIndex - this.getOffsetForAltStartDay(), weekIndex * DAYS_IN_WEEK + dayIndex),
         )}
       </g>
     );
@@ -274,6 +308,61 @@ class CalendarHeatmap extends React.Component {
 
   renderAllWeeks() {
     return getRange(this.getWeekCount()).map((weekIndex) => this.renderWeek(weekIndex));
+  }
+
+  renderAllWeeksWithOffset() {
+    let month = this.getStartDate().getUTCMonth() + 1;
+    let year = this.getStartDate().getUTCFullYear();
+    let n = new Date(`${month}/01/${year}`);
+    let date = 0;
+    let sundayStart = false;
+    let currentDay = n.getDay();
+    if(currentDay === 0) {
+      currentDay = 7;
+      sundayStart = true;
+    }
+    let weekArr = [];
+    let ld = getLastDayOf(month);
+    console.log(n, currentDay, ld);
+    for ( let i = 0; i < (Math.ceil(ld / 7) + 1); i++ ) {
+      let twa = []; 
+      let day = this.getOffsetForAltStartDay();
+      for ( let d = 0; d < 7; d++ ) {
+        if(currentDay > day && date === 0) {
+          twa.push(`X-${daysOfWeek[day]}`);
+        } else {
+          if(date > ld) {
+            twa.push(`X-${daysOfWeek[day]}`);
+          } else {
+            twa.push(`${date}-${daysOfWeek[day]}`);
+          }
+        }
+        day++;
+        if(day >= currentDay || date > 0) {
+          date++;
+        }
+        if(day === 7) {
+          day = 0;
+        }
+      }
+      weekArr.push(twa);
+    }
+    console.log(month, year, weekArr);
+
+    return (
+      weekArr.map((daysArr, weekIndex) =>
+        <g
+          key={weekIndex}
+          transform={this.getTransformForWeek(sundayStart?(weekIndex + 1):weekIndex)}
+          className={`${CSS_PSEDUO_NAMESPACE}week`}
+        > {console.log(weekArr, weekIndex, weekArr[weekIndex])}
+          {daysArr.map((day, dayIndex) =>
+            this.renderSquare(dayIndex, weekIndex * DAYS_IN_WEEK + dayIndex),
+          )}
+        </g>
+      )
+    );
+    
   }
 
   renderMonthLabels() {
@@ -325,7 +414,7 @@ class CalendarHeatmap extends React.Component {
           transform={this.getTransformForAllWeeks()}
           className={`${CSS_PSEDUO_NAMESPACE}all-weeks`}
         >
-          {this.renderAllWeeks()}
+          {this.renderAllWeeksWithOffset()}
         </g>
         <g
           transform={this.getTransformForWeekdayLabels()}
@@ -362,6 +451,11 @@ CalendarHeatmap.propTypes = {
   onMouseOver: PropTypes.func, // callback function when mouse pointer is over a square
   onMouseLeave: PropTypes.func, // callback function when mouse pointer is left a square
   transformDayElement: PropTypes.func, // function to further transform the svg element for a single day
+  offsetX: PropTypes.number,
+  offsetY: PropTypes.number,
+  paddingX: PropTypes.number,
+  paddingY: PropTypes.number,
+  startWeekOn: PropTypes.number
 };
 
 CalendarHeatmap.defaultProps = {
@@ -370,6 +464,7 @@ CalendarHeatmap.defaultProps = {
   endDate: new Date(),
   gutterSize: 1,
   horizontal: true,
+  startWeekOn: 0,
   showMonthLabels: true,
   showWeekdayLabels: false,
   showOutOfRangeDays: false,
@@ -382,6 +477,10 @@ CalendarHeatmap.defaultProps = {
   onMouseOver: null,
   onMouseLeave: null,
   transformDayElement: null,
+  offsetX: -2,
+  offsetY: 0,
+  paddingX: 0,
+  paddingY: 2
 };
 
 export default CalendarHeatmap;

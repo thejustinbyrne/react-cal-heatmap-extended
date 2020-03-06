@@ -18,3 +18,7 @@ export const MONTH_LABELS = [
 ];
 
 export const DAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
+
+export const DAY_LABELS_MONDAY_4 = ['Mon', '', 'Wed', '', 'Fri', '', 'Sun'];
+
+export const DAY_LABELS_MONDAY_3 = ['', 'Tues', '', 'Thurs', '', 'Sat', ''];

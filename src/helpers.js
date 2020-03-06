@@ -25,3 +25,45 @@ export function getRange(count) {
   }
   return arr;
 }
+
+function renderCalMondayThroughSunday(month) {
+  let year = new Date().getUTCFullYear();
+  let n = new Date(`${month}/01/${year}`);
+  let date = 0;
+  let currentDay = n.getDay();
+  let weekArr = [];
+  let ld = getLastDayOf(month);
+  for ( let i = 0; i < Math.ceil(ld / 7); i++ ) {
+    let twa = []; day = 1;
+    for ( let d = 0; d < 7; d++ ) {
+      if(currentDay > day && date === 0) {
+        twa.push(`X-${daysOfWeek[day]}`);
+      } else {
+        if(date > ld) {
+          twa.push(`X-${daysOfWeek[day]}`);
+        } else {
+          twa.push(`${date}-${daysOfWeek[day]}`);
+        }
+      }
+      day++;
+      if(day >= currentDay || date > 0) {
+        date++;
+      }
+      if(day === 7) {
+        day = 0;
+      }
+    }
+    weekArr.push(twa);
+  }
+  console.log(weekArr);
+}
+
+export const daysOfWeek = [ "Su", "M", "T", "W", "Th", "F", "Sa" ];
+
+export function getLastDayOf(month) {
+  let year = new Date().getUTCFullYear();
+  let n = new Date(`${month}/01/${year}`);
+  n.setMonth(n.getMonth() + 1);
+  n.setDate(n.getDate() - 1);
+  return n.getDate();
+}

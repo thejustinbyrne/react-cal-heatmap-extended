@@ -61,25 +61,19 @@ class Demo extends React.Component {
         <div className="row">
           <div className="col-12 col-sm-6">
             <CalendarHeatmap
+              showMonthLabels={false}
+              showWeekdayLabels={true}
+              horizontal={false}
+              startDate={"9/30/2019"}
+              endDate={"10/31/2019"}
               values={this.state.values}
+              weekdayLabels={['', 'Tues', '', 'Thurs', '', 'Sat', '']}
+              startWeekOn={1}
               classForValue={(value) => {
                 if (!value) {
                   return 'color-empty';
                 }
                 return `color-github-${value.count}`;
-              }}
-              tooltipDataAttrs={this.getTooltipDataAttrs}
-              onClick={this.handleClick}
-            />
-          </div>
-          <div className="col-12 col-sm-6">
-            <CalendarHeatmap
-              values={this.state.values}
-              classForValue={(value) => {
-                if (!value) {
-                  return 'color-empty';
-                }
-                return `color-gitlab-${value.count}`;
               }}
               tooltipDataAttrs={this.getTooltipDataAttrs}
               onClick={this.handleClick}
